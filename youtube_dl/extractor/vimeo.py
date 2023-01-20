@@ -42,6 +42,10 @@ class VimeoBaseInfoExtractor(InfoExtractor):
     _LOGIN_REQUIRED = False
     _LOGIN_URL = 'https://vimeo.com/log_in'
 
+    @staticmethod
+    def _smuggle_referrer(url, referrer_url):
+        return smuggle_url(url, {'http_headers': {'Referer': referrer_url}})
+
     def _login(self):
         username, password = self._get_login_info()
         if username is None:
@@ -543,10 +547,6 @@ class VimeoIE(VimeoBaseInfoExtractor):
         # https://gettingthingsdone.com/workflowmap/
         # vimeo embed with check-password page protected by Referer header
     ]
-
-    @staticmethod
-    def _smuggle_referrer(url, referrer_url):
-        return smuggle_url(url, {'http_headers': {'Referer': referrer_url}})
 
     @staticmethod
     def _extract_urls(url, webpage):
@@ -1160,8 +1160,13 @@ class VHXEmbedIE(VimeoBaseInfoExtractor):
         return unescapeHTML(mobj.group(1)) if mobj else None
 
     def _real_extract(self, url):
+        url, data = unsmuggle_url(url, {})
+        headers = std_headers.copy()
+        if 'http_headers' in data:
+            headers.update(data['http_headers'])
+
         video_id = self._match_id(url)
-        webpage = self._download_webpage(url, video_id)
+        webpage = self._download_webpage(url, video_id, headers=headers)
         config_url = self._parse_json(self._search_regex(
             r'window\.OTTData\s*=\s*({.+})', webpage,
             'ott data'), video_id, js_to_json)['config_url']
